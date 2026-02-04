@@ -161,8 +161,11 @@ function draw() {
     }
 
     // Player
-    ctx.fillStyle = "#ff4444";
-    ctx.fillRect(player.x - camera.x, player.y, player.width, player.height);
+    //use the image benjanito.jpg as the player inestad of the rectangle
+    const playerImage = new Image();
+    playerImage.src = "benjanito.jpg";
+    ctx.drawImage(playerImage, player.x - camera.x, player.y, player.width, player.height);
+
 }
 
 // ===============================
