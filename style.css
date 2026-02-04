@@ -1,0 +1,21 @@
+/* Eliminar márgenes y ocupar toda la pantalla */
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: #000;
+    overflow: hidden;
+}
+
+/* Canvas escalado a pantalla completa */
+canvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+    background: #87ceeb;
+
+    /* MUY IMPORTANTE para pixel art */
+    image-rendering: pixelated;
+    /*image-rendering: crisp-edges;*/
+}
