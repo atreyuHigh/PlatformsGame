@@ -1,30 +1,11 @@
-// ===============================
-// CANVAS
-// ===============================
+// Simple Platformer Game - Fresh Start
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-// ===============================
-// INPUT
-// ===============================
-const keys = {};
-document.addEventListener("keydown", e => keys[e.key] = true);
-document.addEventListener("keyup", e => keys[e.key] = false);
+console.log("Game started!");
+console.log("Canvas size:", canvas.width, "x", canvas.height);
 
-// ===============================
-// CONSTANTS
-// ===============================
-const gravity = 0.5;
-const WORLD_WIDTH = 3000;
-
-// ===============================
-// CAMERA
-// ===============================
-const camera = { x: 0 };
-
-// ===============================
-// PLAYER (WORLD COORDS)
-// ===============================
+// Game state
 const player = {
     x: 100,
     y: 300,
@@ -38,144 +19,182 @@ const player = {
     prevY: 300
 };
 
-// ===============================
-// WORLD GEOMETRY
-// ===============================
+const gravity = 0.5;
+const keys = {};
 
-// Sólidos completos (paredes, suelo)
-const solids = [
-    { x: 0, y: 420, width: WORLD_WIDTH, height: 30 }, // suelo
-    { x: 800, y: 370, width: 80, height: 50 }, 
-    { x: 1600, y: 250, width: 40, height: 200 }      // pared vertical
-];
+// Input handling
+document.addEventListener("keydown", (e) => {
+    keys[e.key] = true;
+});
 
-// Plataformas de salto (one-way)
-const platforms = [
-    { x: 300,  y: 340, width: 120, height: 10 },
-    { x: 650,  y: 300, width: 120, height: 10 },
-    { x: 1000, y: 260, width: 120, height: 10 }
-];
+document.addEventListener("keyup", (e) => {
+    keys[e.key] = false;
+});
 
-// ===============================
-// AABB
-// ===============================
-function isColliding(a, b) {
-    return (
-        a.x < b.x + b.width &&
-        a.x + a.width > b.x &&
-        a.y < b.y + b.height &&
-        a.y + a.height > b.y
-    );
+// Game data
+
+const level = {
+    worldWidth: 3000,
+    solids: [
+        { x: 0, y: 420, width: 3000, height: 30 },
+        { x: 200, y: 350, width: 50, height: 10 }
+    ],
+    platforms: [
+        { x: 300, y: 340, width: 220, height: 10 },
+        { x: 650, y: 300, width: 120, height: 10 },
+        { x: 1000, y: 260, width: 120, height: 10 }
+    ],
+    enemies: [
+        { x: 500, y: 380, width: 40, height: 10, speed: 1.5, dir: -1 },
+        { x: 1200, y: 380, width: 30, height: 10, speed: 2, dir: 1 }
+    ]
+};
+
+const camera = { x: 0 };
+let gameOver = false;
+let lastTime = 0;
+
+// Collision detection
+function hit(a, b) {
+    return a.x < b.x + b.width &&
+           a.x + a.width > b.x &&
+           a.y < b.y + b.height &&
+           a.y + a.height > b.y;
 }
 
-// ===============================
-// UPDATE PLAYER
-// ===============================
+// Update player
 function updatePlayer() {
     player.prevY = player.y;
-
-    // --- Input
-    player.vx = 0;
-    if (keys["ArrowLeft"])  player.vx = -player.speed;
-    if (keys["ArrowRight"]) player.vx =  player.speed;
-
-    if (keys["ArrowUp"] && player.onGround) {
+    
+    // Horizontal movement
+    if (keys["ArrowLeft"] || keys["a"]) player.vx = -player.speed;
+    else if (keys["ArrowRight"] || keys["d"]) player.vx = player.speed;
+    else player.vx = 0;
+    
+    // Jump
+    if ((keys["ArrowUp"] || keys["w"] || keys[" "]) && player.onGround) {
         player.vy = -player.jumpForce;
         player.onGround = false;
     }
-
-    // --- Gravity
+    
+    // Apply gravity
     player.vy += gravity;
-
-    // ===============================
-    // HORIZONTAL (SOLO SOLIDS)
-    // ===============================
+    
+    // Update X position
     player.x += player.vx;
-    for (const s of solids) {
-        if (isColliding(player, s)) {
+    
+    // Collide with solids (horizontal)
+    level.solids.forEach(s => {
+        if (hit(player, s)) {
             if (player.vx > 0) player.x = s.x - player.width;
-            else if (player.vx < 0) player.x = s.x + s.width;
+            if (player.vx < 0) player.x = s.x + s.width;
         }
-    }
-
-    // ===============================
-    // VERTICAL
-    // ===============================
+    });
+    
+    // Update Y position
     player.y += player.vy;
     player.onGround = false;
-
-    // Solids (suelo, pared)
-    for (const s of solids) {
-        if (isColliding(player, s)) {
+    
+    // Collide with solids (vertical)
+    level.solids.forEach(s => {
+        if (hit(player, s)) {
             if (player.vy > 0) {
                 player.y = s.y - player.height;
                 player.vy = 0;
                 player.onGround = true;
-            } else if (player.vy < 0) {
-                player.y = s.y + s.height;
-                player.vy = 0;
             }
         }
-    }
-
-    // Platforms (solo si cae desde arriba)
-    for (const p of platforms) {
-        const wasAbove = player.prevY + player.height <= p.y;
-        const isFalling = player.vy >= 0;
-
-        if (isColliding(player, p) && wasAbove && isFalling) {
+    });
+    
+    // Collide with platforms
+    level.platforms.forEach(p => {
+        if (hit(player, p) && player.prevY + player.height <= p.y && player.vy >= 0) {
             player.y = p.y - player.height;
             player.vy = 0;
             player.onGround = true;
         }
-    }
-
-    // límites del mundo
-    player.x = Math.max(0, Math.min(WORLD_WIDTH - player.width, player.x));
+    });
+    
+    // Check enemy collision
+    level.enemies.forEach(e => {
+        if (hit(player, e)) gameOver = true;
+    });
 }
 
-// ===============================
-// CAMERA (CENTER PLAYER)
-// ===============================
+// Update enemies
+function updateEnemies() {
+    level.enemies.forEach(e => {
+        e.x += e.speed * e.dir;
+        
+        // Bounce at level bounds
+        if (e.x < 0 || e.x + e.width > level.worldWidth) {
+            e.dir *= -1;
+        }
+    });
+}
+
+// Update camera
 function updateCamera() {
-    camera.x = player.x + player.width / 2 - canvas.width / 2;
-    camera.x = Math.max(0, Math.min(WORLD_WIDTH - canvas.width, camera.x));
+    camera.x = player.x - canvas.width / 2;
+    camera.x = Math.max(0, Math.min(level.worldWidth - canvas.width, camera.x));
 }
 
-// ===============================
-// DRAW
-// ===============================
+// Draw everything
 function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Solids
+    // Clear canvas
+    ctx.fillStyle = "#87CEEB";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw solids
     ctx.fillStyle = "#3b7a1e";
-    for (const s of solids) {
+    level.solids.forEach(s => {
         ctx.fillRect(s.x - camera.x, s.y, s.width, s.height);
+    });
+    
+    // Draw platforms
+    const platformImg = new Image();
+    platformImg.src = "platform.jpg";
+    level.platforms.forEach(p => {
+        ctx.drawImage(platformImg, p.x - camera.x, p.y, p.width, p.height);
+    });
+    
+    // Draw enemies
+    ctx.fillStyle = "#FF0000";
+    level.enemies.forEach(e => {
+        ctx.fillRect(e.x - camera.x, e.y, e.width, e.height);
+    });
+    
+    // Draw player
+    ctx.fillStyle = "#FFD700";
+    ctx.fillRect(player.x - camera.x, player.y, player.width, player.height);
+    
+    // Draw game over
+    if (gameOver) {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        ctx.fillStyle = "#FFFFFF";
+        ctx.font = "bold 40px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("GAME OVER", canvas.width / 2, canvas.height / 2);
     }
-
-    // Platforms
-    ctx.fillStyle = "#2e8b57";
-    for (const p of platforms) {
-        ctx.fillRect(p.x - camera.x, p.y, p.width, p.height);
-    }
-
-    // Player
-    //use the image benjanito.jpg as the player inestad of the rectangle
-    const playerImage = new Image();
-    playerImage.src = "benjanito.jpg";
-    ctx.drawImage(playerImage, player.x - camera.x, player.y, player.width, player.height);
-
 }
 
-// ===============================
-// LOOP
-// ===============================
-function loop() {
-    updatePlayer();
-    updateCamera();
+// Game loop
+function gameLoop(currentTime) {
+    const deltaTime = currentTime - lastTime;
+    lastTime = currentTime;
+    
+    if (!gameOver) {
+        updatePlayer();
+        updateEnemies();
+        updateCamera();
+    }
+    
     draw();
-    requestAnimationFrame(loop);
+    requestAnimationFrame(gameLoop);
 }
 
-loop();
+// Start the game
+console.log("Starting game loop...");
+requestAnimationFrame(gameLoop);
