@@ -1,0 +1,20 @@
+{
+  "worldWidth": 3000,
+
+  "solids": [
+    { "x": 0, "y": 420, "width": 3000, "height": 30 },
+    { "x": 800, "y": 370, "width": 80, "height": 50 },
+    { "x": 1600, "y": 250, "width": 40, "height": 200 }
+  ],
+
+  "platforms": [
+    { "x": 300,  "y": 340, "width": 220, "height": 10 },
+    { "x": 650,  "y": 300, "width": 120, "height": 10 },
+    { "x": 1000, "y": 260, "width": 120, "height": 10 }
+  ],
+
+  "enemies": [
+    { "x": 500,  "y": 380, "width": 40, "height": 10, "speed": 1.5 },
+    { "x": 1200, "y": 380, "width": 30, "height": 10, "speed": 2 }
+  ]
+}
