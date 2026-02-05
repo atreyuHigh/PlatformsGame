@@ -89,6 +89,23 @@ function updatePlayer() {
             player.vy = 0;
             player.onGround = true;
         }
+        // Optional: Handle head bumping into solids
+        else if (hit(player, s) && player.vy < 0) {
+            player.y = s.y + s.height;
+            player.vy = 0;
+        }
+    });
+    //collision with mobile platforms (only when falling and above the platform)
+    level.mobile_platforms.forEach(p => {
+        if (
+            hit(player, p) &&
+            player.prevY + player.height <= p.y &&
+            player.vy > 0
+        ) {
+            player.y = p.y - player.height;
+            player.vy = 0;
+            player.onGround = true;
+        }
     });
 
     level.platforms.forEach(p => {
@@ -128,6 +145,23 @@ function updateEnemies() {
         }
     });
 }
+function updateMobilePlatforms() {
+    level.mobile_platforms.forEach(p => {
+        p.x += p.speed * p.dir;
+
+        level.solids.forEach(s => {
+            if (hit(p, s)) {
+                if (p.dir > 0) p.x = s.x - p.width;
+                else p.x = s.x + s.width;
+                p.dir *= -1;
+            }
+        });
+
+        if (p.x < 0 || p.x + p.width > level.worldWidth) {
+            p.dir *= -1;
+        }
+    });
+}
 
 // ======================
 // CAMERA
@@ -157,6 +191,14 @@ function draw() {
         ctx.fillRect(p.x - camera.x, p.y - camera.y, p.width, p.height)
     );
 
+    // draw mobile platforms
+    ctx.fillStyle = "#008B8B";
+    if (level.mobile_platforms) {
+        level.mobile_platforms.forEach(p =>
+            ctx.fillRect(p.x - camera.x, p.y - camera.y, p.width, p.height)
+        );
+    }
+
     ctx.fillStyle = "red";
     level.enemies.forEach(e =>
         ctx.fillRect(e.x - camera.x, e.y - camera.y, e.width, e.height)
@@ -176,6 +218,7 @@ function draw() {
 // ======================
 function loop() {
     if (!gameOver) {
+        updateMobilePlatforms();
         updatePlayer();
         updateEnemies();
         updateCamera();
