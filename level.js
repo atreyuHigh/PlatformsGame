@@ -16,6 +16,7 @@ const level = {
         { x: 300,  y: groundY - 120, width: 220, height: 10 },       
         { x: 330,  y: groundY - 220, width: 220, height: 10 },
         { x: 340,  y: groundY - 270, width: 220, height: 10 },
+        { x: 350,  y: groundY - 350, width: 200, height: 10 },
         { x: 360,  y: groundY - 410, width: 220, height: 10 },
         { x: 370,  y: groundY - 490, width: 220, height: 10 },
         { x: 350,  y: groundY - 570, width: 220, height: 10 },
@@ -28,10 +29,11 @@ const level = {
     ],
     
     mobile_platforms: [
-        { x: 300,  y: groundY - 70, width: 220, height: 10, speed: 1, dir: -1}
+        { x: 300,  y: groundY - 70, width: 220, height: 10, speed: 1, dir: -1},
+        { x: 650,  y: groundY - 950, width: 220, height: 10, speed: 5, dir: -1}
     ],
     enemies: [
-        { x: 220, y: groundY - 230, width: 10, height: 6, speed: 2.5, dir: -1 },
+        { x: 220, y: groundY - 230, width: 10, height: 6, speed: 0, dir: -1 },
         { x: 400, y: groundY - 20, width: 40, height: 20, speed: 1.5, dir: 1 }
     ]
 };

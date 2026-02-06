@@ -14,7 +14,9 @@ const player = {
     speed: 4,
     jumpForce: 12,
     onGround: false,
-    prevY: 0
+    prevY: 0,
+    facing: "right",   // <-- NEW
+    standingOn: null
 };
 
 const gravity = 0.5;
@@ -26,11 +28,6 @@ let gameOver = false;
 // ======================
 document.addEventListener("keydown", e => keys[e.key] = true);
 document.addEventListener("keyup", e => keys[e.key] = false);
-
-// ======================
-// LEVEL
-// ======================
-// `groundY` and `level` are loaded from level.js
 
 // ======================
 // CAMERA
@@ -56,18 +53,25 @@ function updatePlayer() {
     player.prevY = player.y;
 
     // Input
-    if (keys["ArrowLeft"] || keys["a"]) player.vx = -player.speed;
-    else if (keys["ArrowRight"] || keys["d"]) player.vx = player.speed;
-    else player.vx = 0;
+    if (keys["ArrowLeft"] || keys["a"]) {
+        player.vx = -player.speed;
+        player.facing = "left";
+    } else if (keys["ArrowRight"] || keys["d"]) {
+        player.vx = player.speed;
+        player.facing = "right";
+    } else {
+        player.vx = 0;
+    }
 
     if ((keys["ArrowUp"] || keys["w"] || keys[" "]) && player.onGround) {
         player.vy = -player.jumpForce;
         player.onGround = false;
+        player.standingOn = null;
     }
 
     player.vy += gravity;
 
-    // ---- X movement + SOLID collision ----
+    // ---- X movement ----
     player.x += player.vx;
 
     level.solids.forEach(s => {
@@ -85,26 +89,27 @@ function updatePlayer() {
 
     level.solids.forEach(s => {
         if (hit(player, s) && player.vy > 0) {
+            if (player.vy > 15) gameOver = true;
             player.y = s.y - player.height;
             player.vy = 0;
             player.onGround = true;
-        }
-        // Optional: Handle head bumping into solids
-        else if (hit(player, s) && player.vy < 0) {
+        } else if (hit(player, s) && player.vy < 0) {
             player.y = s.y + s.height;
             player.vy = 0;
         }
     });
-    //collision with mobile platforms (only when falling and above the platform)
+
     level.mobile_platforms.forEach(p => {
         if (
             hit(player, p) &&
             player.prevY + player.height <= p.y &&
             player.vy > 0
         ) {
+            if (player.vy > 15) gameOver = true;
             player.y = p.y - player.height;
             player.vy = 0;
             player.onGround = true;
+            player.standingOn = p;
         }
     });
 
@@ -114,6 +119,7 @@ function updatePlayer() {
             player.prevY + player.height <= p.y &&
             player.vy >= 0
         ) {
+            if (player.vy > 15) gameOver = true;
             player.y = p.y - player.height;
             player.vy = 0;
             player.onGround = true;
@@ -123,10 +129,34 @@ function updatePlayer() {
     level.enemies.forEach(e => {
         if (hit(player, e)) gameOver = true;
     });
+
+    // Move with mobile platform
+    if (player.onGround && player.standingOn) {
+        const p = player.standingOn;
+        const prev = p.prevX ?? p.x;
+        const dx = p.x - prev;
+
+        player.x += dx;
+
+        level.solids.forEach(s => {
+            if (hit(player, s)) {
+                if (dx > 0) player.x = s.x - player.width;
+                else player.x = s.x + s.width;
+            }
+        });
+
+        player.x = Math.max(0, Math.min(level.worldWidth - player.width, player.x));
+
+        if (Math.abs((player.y + player.height) - p.y) > 0.5) {
+            player.standingOn = null;
+        }
+    } else {
+        player.standingOn = null;
+    }
 }
 
 // ======================
-// ENEMIES UPDATE
+// ENEMIES
 // ======================
 function updateEnemies() {
     level.enemies.forEach(e => {
@@ -134,8 +164,6 @@ function updateEnemies() {
 
         level.solids.forEach(s => {
             if (hit(e, s)) {
-                if (e.dir > 0) e.x = s.x - e.width;
-                else e.x = s.x + s.width;
                 e.dir *= -1;
             }
         });
@@ -145,14 +173,17 @@ function updateEnemies() {
         }
     });
 }
+
+// ======================
+// MOBILE PLATFORMS
+// ======================
 function updateMobilePlatforms() {
     level.mobile_platforms.forEach(p => {
+        p.prevX = p.x;
         p.x += p.speed * p.dir;
 
         level.solids.forEach(s => {
             if (hit(p, s)) {
-                if (p.dir > 0) p.x = s.x - p.width;
-                else p.x = s.x + s.width;
                 p.dir *= -1;
             }
         });
@@ -175,6 +206,35 @@ function updateCamera() {
 }
 
 // ======================
+// DRAW PLAYER (NEW)
+// ======================
+function drawPlayer() {
+    const px = player.x - camera.x;
+    const py = player.y - camera.y;
+
+    // Body
+    ctx.fillStyle = "#FFD700";
+    ctx.fillRect(px, py, player.width, player.height);
+
+    // Head stripe (red)
+    const headHeight = player.height * 0.25;
+    ctx.fillStyle = "red";
+    ctx.fillRect(px, py, player.width, headHeight);
+
+    // Mouth (black)
+    const mouthY = py + headHeight * 1.6;
+    const mouthHeight = 3;
+    const half = player.width / 2;
+
+    ctx.fillStyle = "black";
+    if (player.facing === "right") {
+        ctx.fillRect(px + half, mouthY, half - 2, mouthHeight);
+    } else {
+        ctx.fillRect(px + 2, mouthY, half - 2, mouthHeight);
+    }
+}
+
+// ======================
 // DRAW
 // ======================
 function draw() {
@@ -191,26 +251,17 @@ function draw() {
         ctx.fillRect(p.x - camera.x, p.y - camera.y, p.width, p.height)
     );
 
-    // draw mobile platforms
     ctx.fillStyle = "#008B8B";
-    if (level.mobile_platforms) {
-        level.mobile_platforms.forEach(p =>
-            ctx.fillRect(p.x - camera.x, p.y - camera.y, p.width, p.height)
-        );
-    }
+    level.mobile_platforms.forEach(p =>
+        ctx.fillRect(p.x - camera.x, p.y - camera.y, p.width, p.height)
+    );
 
     ctx.fillStyle = "red";
     level.enemies.forEach(e =>
         ctx.fillRect(e.x - camera.x, e.y - camera.y, e.width, e.height)
     );
 
-    ctx.fillStyle = "#FFD700";
-    ctx.fillRect(
-        player.x - camera.x,
-        player.y - camera.y,
-        player.width,
-        player.height
-    );
+    drawPlayer();
 }
 
 // ======================
@@ -223,6 +274,7 @@ function loop() {
         updateEnemies();
         updateCamera();
     }
+
     draw();
     requestAnimationFrame(loop);
 }
